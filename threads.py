@@ -1,26 +1,35 @@
 """
-  Purpose: find the most common issues each week on EdForum.
-  How: look for the most common phrases in either:
+  PURPOSE: find the most common issues each week on EdForum.
+  HOW: look for the most common phrases in either:
     -> the title of the post & the post itself
     -> only the title (recommended)
 
-  Instructions:
-
-    # Instructions/Recommendations:
-    #   Set title_only == True/False
-    #   -> for title only: max_phrase_len == 5, min_repeat == 2
-    #   -> otherwise     : max_phrase_len == 4, min_repeat == 3
+  INSTRUCTIONS:
+    -> Set FILE_NAME for a json file in the same directory
+    -> Set START_DATE to be the first Monday of Week 1 in the form "dd-mm-yyyy"
+    -> Set TERM to the current term
+    -> Set TITLE_ONLY == True/False (recommendation: set to true)
+       -> for title only : MAX_PHRASE_LEN == 5, MIN_REPEAT == 2
+       -> otherwise      : MAX_PHRASE_LEN == 4, MIN_REPEAT == 3
 """
 import json
 import re
 import nltk
 import ssl
 from datetime import datetime, timedelta
-FILE_NAME = "discussion-threads.json"  # json file needs to be in same directory
-START_DATE = "11-09-2023"             # Monday Week 1
+
+# CHANGE BELOW
+FILE_NAME = "discussion-threads.json"
+START_DATE = "11-09-2023"
+TERM = "23T3"
+TITLE_ONLY = True
+MAX_PHRASE_LEN = 5
+MIN_REPEAT = 2
+# ------------
 WEEK1_DATE = datetime.strptime(START_DATE, '%d-%m-%Y').date()
-DATE_LEN = 10                         # str len of "11-09-2023" is 10
-MAX_WEEKS = 15
+DATE_LEN = 10  # str len of "11-09-2023" is 10
+MAX_WEEKS = 14
+
 
 def ignored_words_setup():
     """
@@ -33,7 +42,6 @@ def ignored_words_setup():
     else:
         ssl._create_default_https_context = _create_unverified_https_context
     nltk.download('stopwords')
-
 
 
 def get_week(week, date):
@@ -61,12 +69,9 @@ def get_week(week, date):
     return None
 
 
-def generate_data(title_only):
+def generate_data():
     """
-      Description of the function and its arguments.
-
-      Parameters:
-      title_only (bool): Whether to search only the title, or title + text
+      Loads the json file and stores the info in a dictionary organised by week.
 
       Returns:
       info (dict): key is the week number, value is a list of strings 
@@ -79,16 +84,17 @@ def generate_data(title_only):
     for post in data:
         week = get_week(week, post["created_at"])
         if post["user"]["role"] == "student":
-            if title_only:
+            if TITLE_ONLY:
                 info[week].append(post["title"])
             else:
                 info[week].append(f'{post["title"]} {post["text"]}')
     return info
 
-def get_common_phrases(texts, ignored_words, maximum_length=3, minimum_repeat=2) -> dict:
+
+def get_common_phrases(texts, ignored_words, maximum_length=MAX_PHRASE_LEN, minimum_repeat=MIN_REPEAT) -> dict:
     """
-      Description of the function and its arguments.
-      https://dev.to/mattschwartz/quickly-find-common-phrases-in-a-large-list-of-strings-9in
+      Finds the common phrases given a list of strings, reference:
+      -> https://dev.to/mattschwartz/quickly-find-common-phrases-in-a-large-list-of-strings-9in
 
       Parameters:
       texts (obj): list of strings
@@ -148,51 +154,36 @@ def get_common_phrases(texts, ignored_words, maximum_length=3, minimum_repeat=2)
     return longest_phrases
 
 
-def sorted_common_phrases(title_only, max_phrase_len, min_repeat):
+def sorted_common_phrases():
     """
-      Description of the function and its arguments.
-
-      Parameters:
-      param1 (type): Description of the first parameter.
-      param2 (type): Description of the second parameter.
+      Sorts list of common phrases by word length and then frequency. 
 
       Returns:
-      return_type: Description of the return value.
+      return_type (dict): sorted dictionary of common phrases. 
     """
-    info = generate_data(title_only)
+    info = generate_data()
     ignored_words_setup()
     ignored_words = nltk.corpus.stopwords.words('english')
     sorted_phrases = {}
     for week in range(0, MAX_WEEKS):
-        sorted_phrases[week] = get_common_phrases(
-            info[week], ignored_words, max_phrase_len, min_repeat)
+        sorted_phrases[week] = get_common_phrases(info[week], ignored_words)
         sorted_phrases[week] = dict(
             sorted(sorted_phrases[week].items(), key=lambda item: item[1], reverse=True))
         sorted_phrases[week] = dict(
             sorted(sorted_phrases[week].items(), key=lambda l: len(l[0]), reverse=True))
     return sorted_phrases
 
-# TODO: make it able to choose between text or title
-# print to text file?
-
-
-'''
-Formatting text files with choosen number of spaces
-  num_occurences: (int) occurences of a word
-  return: (int) how many spaces to between the num and phrase
-'''
-
 
 def number_of_spaces(num_occurences):
     """
-      Description of the function and its arguments.
+      For formatting purposes, calculates length of whitespace between the
+      phrase and number of occurences. 
 
       Parameters:
-      param1 (type): Description of the first parameter.
-      param2 (type): Description of the second parameter.
+      num_occurences (int): How many times a phrase occurs. 
 
       Returns:
-      return_type: Description of the return value.
+      return_type (int): length of whitespace.
     """
     digits_occurences = len(str(num_occurences))
     if (digits_occurences > 2):
@@ -207,24 +198,20 @@ def export_phrases(phrases):
       Parameters:
       phrases (dict): key is the week, value is a list of common phrases
     """
+    f = open(f'common-phrases.md', "w")
+    f.write(f'# EdForum: Most Common Issues ({TERM})\n')
     for week in range(0, MAX_WEEKS):
-        f = open(f'week{week}.txt', "w")
+        f.write("<details>")
+        f.write(f'<summary><b>&nbsp; Week {week} </b></summary>')
         for tupl, occurences in phrases[week].items():
             phrase = ' '.join(tupl)
             num_spaces = number_of_spaces(occurences)
-            spaces = ' ' * num_spaces
-            f.write(f'({occurences}){spaces}{phrase}\n')
-        f.close()
+            spaces = '&nbsp;' * num_spaces
+
+            f.write(f'({occurences}){spaces}{phrase}<br>')
+        f.write("</details>")
+    f.close()
 
 
 if __name__ == "__main__":
-    # Instructions/Recommendations:
-    #   Set title_only == True/False
-    #   -> for title only: max_phrase_len == 5, min_repeat == 2
-    #   -> otherwise     : max_phrase_len == 4, min_repeat == 3
-    title_only = True
-    max_phrase_len = 5  # maximum words in a phrase
-    min_repeat = 2      # minimum times a phrase has to repeat
-
-    export_phrases(sorted_common_phrases(
-        title_only, max_phrase_len, min_repeat))
+    export_phrases(sorted_common_phrases())
