@@ -17,6 +17,13 @@
                   Suggested values: MAX_PHRASE_LEN == 4, MIN_REPEAT == 3
 
   FILE STRUCTURE:
+    generate_data
+      -> get_week
+      -> ignored_words_setup
+    sorted_common_phrases
+      -> get_common_phrases
+    export_phrases
+      -> export_one_list
 """
 import json
 import re
@@ -33,8 +40,8 @@ TERM = "23T3"
 # OPTIONAL TO CHANGE:
 MAX_RESULTS_PER_WEEK = 50
 SEARCH_TITLE_ONLY = True
-MAX_PHRASE_LEN = 5
-MIN_REPEAT = 2
+MAX_PHRASE_LEN = 5 
+MIN_REPEAT = 2 # minimum times a phrase has to occur to be logged
 # ------------
 WEEK1_DATE = datetime.strptime(START_DATE, '%d-%m-%Y').date()
 DATE_LEN = 10  # str len of "11-09-2023" is 10
@@ -91,13 +98,6 @@ def get_week(week, date):
     return None
 
 
-def sort_data(data):
-    """
-      Sorts data in ascending order by date.
-    """
-    data.sort(key=lambda post: datetime.strptime(post["created_at"][:DATE_LEN], '%Y-%m-%d').date())
-
-
 def generate_data():
     """
       Loads the json file and stores the info in a dictionary organised by week.
@@ -108,7 +108,8 @@ def generate_data():
     info = {week: [] for week in range(0, MAX_WEEKS)}
     week = 0
     data = json.load(open(FILE_NAME))
-    sort_data(data) # needed for get_week to work
+    # Sorts data in ascending order by date.
+    data.sort(key=lambda post: datetime.strptime(post["created_at"][:DATE_LEN], '%Y-%m-%d').date())
     for post in data:
         week = get_week(week, post["created_at"])
         if post["user"]["role"] == "student":
@@ -210,9 +211,18 @@ def sorted_common_phrases(info):
 
 
 def export_one_list(f, k, phrase_list):
+    """
+      Exports one week into md file.
+
+      Parameters:
+      f (file): file to write to.
+      k (int/str): either the number of the week, or the word "overall".
+      phrases (dict): key is the week, value is a list of common phrases
+    """
+    heading = f"Week {k}" if type(k) == int else f"OVERALL: Top {MAX_RESULTS_PER_WEEK} issues this term."
     rank = 1
     f.write("<details>")
-    f.write(f"<summary><b>&nbsp; Week {k} </b></summary>\n")
+    f.write(f"<summary><b>&nbsp; {heading} </b></summary>\n")
     f.write("\n| Rank | Occurences | Phrase |\n")
     f.write("| :-----------: | :-----------: | ----------- |\n")
     for tupl, occurences in phrase_list.items():
