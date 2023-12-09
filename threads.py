@@ -16,6 +16,8 @@ import json
 import re
 import nltk
 import ssl
+import os
+import pickle
 from datetime import datetime, timedelta
 
 # CHANGE BELOW
@@ -29,19 +31,28 @@ MIN_REPEAT = 2
 WEEK1_DATE = datetime.strptime(START_DATE, '%d-%m-%Y').date()
 DATE_LEN = 10  # str len of "11-09-2023" is 10
 MAX_WEEKS = 14
+IGNORED_WORDS_FILE = "ignored-words"
 
 
-def ignored_words_setup():
+def ignored_words_setup(info):
     """
       Disables ssl checking to download 'stopwords', probably not the safest thing to do
     """
-    try:
-        _create_unverified_https_context = ssl._create_unverified_context
-    except AttributeError:
-        pass
+    if not os.path.exists(IGNORED_WORDS_FILE):
+        try:
+            _create_unverified_https_context = ssl._create_unverified_context
+        except AttributeError:
+            pass
+        else:
+            ssl._create_default_https_context = _create_unverified_https_context
+        nltk.download('stopwords')
+        ignored_words = nltk.corpus.stopwords.words('english')
+        info["ignored_words"] = ignored_words
+        with open(IGNORED_WORDS_FILE, "wb") as ignored_file:
+            pickle.dump(ignored_words, ignored_file)
     else:
-        ssl._create_default_https_context = _create_unverified_https_context
-    nltk.download('stopwords')
+        with open(IGNORED_WORDS_FILE, "rb") as ignored_file:
+            info["ignored_words"] = pickle.load(ignored_file)
 
 
 def get_week(week, date):
@@ -88,6 +99,7 @@ def generate_data():
                 info[week].append(post["title"])
             else:
                 info[week].append(f'{post["title"]} {post["text"]}')
+    ignored_words_setup(info)
     return info
 
 
@@ -159,37 +171,36 @@ def sorted_common_phrases():
       Sorts list of common phrases by word length and then frequency. 
 
       Returns:
-      return_type (dict): sorted dictionary of common phrases. 
+      return_type (dict): sorted dictionary of common phrases.
     """
     info = generate_data()
-    ignored_words_setup()
-    ignored_words = nltk.corpus.stopwords.words('english')
     sorted_phrases = {}
     for week in range(0, MAX_WEEKS):
-        sorted_phrases[week] = get_common_phrases(info[week], ignored_words)
+        sorted_phrases[week] = get_common_phrases(info[week], info["ignored_words"])
         sorted_phrases[week] = dict(
             sorted(sorted_phrases[week].items(), key=lambda item: item[1], reverse=True))
         sorted_phrases[week] = dict(
             sorted(sorted_phrases[week].items(), key=lambda l: len(l[0]), reverse=True))
     return sorted_phrases
 
+# def sorted_common_phrases_overall():
+#     """
+#       Sorts list of common phrases by word length and then frequency. 
 
-def number_of_spaces(num_occurences):
-    """
-      For formatting purposes, calculates length of whitespace between the
-      phrase and number of occurences. 
-
-      Parameters:
-      num_occurences (int): How many times a phrase occurs. 
-
-      Returns:
-      return_type (int): length of whitespace.
-    """
-    digits_occurences = len(str(num_occurences))
-    if (digits_occurences > 2):
-        return 1
-    return 4 if digits_occurences == 1 else 3
-
+#       Returns:
+#       return_type (dict): sorted dictionary of common phrases. 
+#     """
+#     info = generate_data()
+#     ignored_words_setup()
+#     ignored_words = nltk.corpus.stopwords.words('english')
+#     sorted_phrases = {}
+#     for week in range(0, MAX_WEEKS):
+#         sorted_phrases[week] = get_common_phrases(info[week], ignored_words)
+#         sorted_phrases[week] = dict(
+#             sorted(sorted_phrases[week].items(), key=lambda item: item[1], reverse=True))
+#         sorted_phrases[week] = dict(
+#             sorted(sorted_phrases[week].items(), key=lambda l: len(l[0]), reverse=True))
+#     return sorted_phrases
 
 def export_phrases(phrases):
     """
@@ -200,7 +211,7 @@ def export_phrases(phrases):
     """
     f = open(f"edforum-issues-{TERM.lower()}.md", "w")
     f.write(f"# EdForum: Most Common Issues ({TERM})\n")
-    f.write("This is done by searching for the most common phrases. <br>The ranking \
+    f.write("This is done by searching for the most common phrases each week. <br>The ranking \
             gives preference to phrases with more words, then to frequency \
             of occurence. ")
     for week in range(0, MAX_WEEKS):
@@ -211,8 +222,6 @@ def export_phrases(phrases):
         f.write("| :-----------: | :-----------: | ----------- |\n")
         for tupl, occurences in phrases[week].items():
             phrase = " ".join(tupl)
-            # num_spaces = number_of_spaces(occurences)
-            # spaces = "&nbsp;" * num_spaces
             f.write(f"| {rank} | {occurences} | {phrase} |\n")
             rank += 1
         f.write("</details>")
