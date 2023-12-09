@@ -1,11 +1,11 @@
 """
-  PURPOSE: find the most common issues each week on EdForum.
-  HOW: look for the most common phrases in either:
+  PURPOSE: find the most common issues each week on EdForum by looking for the
+    most common phrases in either:
     -> the title of the post & the post itself
     -> only the title (recommended)
 
   INSTRUCTIONS:
-  Set these values:
+    Set these constants:
     -> FILE_NAME: a json file in the same directory with EdForum data.
     -> START_DATE: the first Monday of Week 1 in the form "dd-mm-yyyy".
     -> TERM: current term.
@@ -15,15 +15,6 @@
                   Suggested values: MAX_PHRASE_LEN == 5, MIN_REPEAT == 2
        -> (False): searches through titles and text
                   Suggested values: MAX_PHRASE_LEN == 4, MIN_REPEAT == 3
-
-  FILE STRUCTURE:
-    generate_data
-      -> get_week
-      -> ignored_words_setup
-    sorted_common_phrases
-      -> get_common_phrases
-    export_phrases
-      -> export_one_list
 """
 import json
 import re
@@ -40,12 +31,12 @@ TERM = "23T3"
 # OPTIONAL TO CHANGE:
 MAX_RESULTS_PER_WEEK = 50
 SEARCH_TITLE_ONLY = True
-MAX_PHRASE_LEN = 5 
-MIN_REPEAT = 2 # minimum times a phrase has to occur to be logged
+MAX_PHRASE_LEN = 5
+MIN_REPEAT = 2  # minimum times a phrase has to occur to be logged
 # ------------
 WEEK1_DATE = datetime.strptime(START_DATE, '%d-%m-%Y').date()
 DATE_LEN = 10  # str len of "11-09-2023" is 10
-MAX_WEEKS = 14 # students usually stop posting by week 12, but just in case...
+MAX_WEEKS = 14  # students usually stop posting by week 12, but just in case...
 IGNORED_WORDS_FILE = "ignored-words"
 
 
@@ -109,7 +100,8 @@ def generate_data():
     week = 0
     data = json.load(open(FILE_NAME))
     # Sorts data in ascending order by date.
-    data.sort(key=lambda post: datetime.strptime(post["created_at"][:DATE_LEN], '%Y-%m-%d').date())
+    data.sort(key=lambda post: datetime.strptime(
+        post["created_at"][:DATE_LEN], '%Y-%m-%d').date())
     for post in data:
         week = get_week(week, post["created_at"])
         if post["user"]["role"] == "student":
@@ -183,6 +175,7 @@ def get_common_phrases(texts, ignored_words, maximum_length=MAX_PHRASE_LEN, mini
             longest_phrases[phrase] = phrases[phrase]
     return longest_phrases
 
+
 def sort_one_list(k, phrase_list, sorted_phrases):
     sorted_phrases[k] = get_common_phrases(phrase_list, info["ignored_words"])
     sorted_phrases[k] = dict(
@@ -206,7 +199,8 @@ def sorted_common_phrases(info):
     for week in range(0, MAX_WEEKS):
         all_phrases += info[week]
         sorted_phrases[week] = sort_one_list(week, info[week], sorted_phrases)
-    sorted_phrases["overall"] = sort_one_list("overall", all_phrases, sorted_phrases)
+    sorted_phrases["overall"] = sort_one_list(
+        "overall", all_phrases, sorted_phrases)
     return sorted_phrases
 
 
@@ -219,7 +213,8 @@ def export_one_list(f, k, phrase_list):
       k (int/str): either the number of the week, or the word "overall".
       phrases (dict): key is the week, value is a list of common phrases
     """
-    heading = f"Week {k}" if type(k) == int else f"OVERALL: Top {MAX_RESULTS_PER_WEEK} issues this term."
+    heading = f"Week {k}" if type(
+        k) == int else f"OVERALL: Top {MAX_RESULTS_PER_WEEK} issues this term."
     rank = 1
     f.write("<details>")
     f.write(f"<summary><b>&nbsp; {heading} </b></summary>\n")
@@ -253,5 +248,15 @@ def export_phrases(phrases):
 
 
 if __name__ == "__main__":
+    """
+      FILE STRUCTURE:
+        generate_data
+          -> get_week
+          -> ignored_words_setup
+        sorted_common_phrases
+          -> get_common_phrases
+        export_phrases
+          -> export_one_list
+    """
     info = generate_data()
     export_phrases(sorted_common_phrases(info))
