@@ -182,23 +182,46 @@ def get_common_phrases(texts, ignored_words, maximum_length=MAX_PHRASE_LEN, mini
             longest_phrases[phrase] = phrases[phrase]
     return longest_phrases
 
+def sort_one_list(k, phrase_list, sorted_phrases):
+    sorted_phrases[k] = get_common_phrases(phrase_list, info["ignored_words"])
+    sorted_phrases[k] = dict(
+        sorted(sorted_phrases[k].items(), key=lambda post: post[1], reverse=True))
+    return dict(
+        sorted(sorted_phrases[k].items(), key=lambda post: len(post[0]), reverse=True))
 
-def sorted_common_phrases():
+
+def sorted_common_phrases(info):
     """
-      Sorts list of common phrases by word length and then frequency. 
+      Sorts common phrases by word length and then frequency, for each week.
+
+      Parameters:
+      info (dict): holds the list of phrases for each week.
 
       Returns:
       return_type (dict): sorted dictionary of common phrases.
     """
-    info = generate_data()
     sorted_phrases = {}
+    all_phrases = []
     for week in range(0, MAX_WEEKS):
-        sorted_phrases[week] = get_common_phrases(info[week], info["ignored_words"])
-        sorted_phrases[week] = dict(
-            sorted(sorted_phrases[week].items(), key=lambda post: post[1], reverse=True))
-        sorted_phrases[week] = dict(
-            sorted(sorted_phrases[week].items(), key=lambda post: len(post[0]), reverse=True))
+        all_phrases += info[week]
+        sorted_phrases[week] = sort_one_list(week, info[week], sorted_phrases)
+    sorted_phrases["overall"] = sort_one_list("overall", all_phrases, sorted_phrases)
     return sorted_phrases
+
+
+def export_one_list(f, k, phrase_list):
+    rank = 1
+    f.write("<details>")
+    f.write(f"<summary><b>&nbsp; Week {k} </b></summary>\n")
+    f.write("\n| Rank | Occurences | Phrase |\n")
+    f.write("| :-----------: | :-----------: | ----------- |\n")
+    for tupl, occurences in phrase_list.items():
+        phrase = " ".join(tupl)
+        f.write(f"| {rank} | {occurences} | {phrase} |\n")
+        if rank == MAX_RESULTS_PER_WEEK:
+            break
+        rank += 1
+    f.write("</details>")
 
 
 def export_phrases(phrases):
@@ -214,18 +237,11 @@ def export_phrases(phrases):
             <br>The list is sorted by the number of words in a phrase, then by \
             frequency with which they occur. ")
     for week in range(0, MAX_WEEKS):
-        rank = 1
-        f.write("<details>")
-        f.write(f"<summary><b>&nbsp; Week {week} </b></summary>\n")
-        f.write("\n| Rank | Occurences | Phrase |\n")
-        f.write("| :-----------: | :-----------: | ----------- |\n")
-        for tupl, occurences in phrases[week].items():
-            phrase = " ".join(tupl)
-            f.write(f"| {rank} | {occurences} | {phrase} |\n")
-            rank += 1
-        f.write("</details>")
+        export_one_list(f, week, phrases[week])
+    export_one_list(f, "overall", phrases["overall"])
     f.close()
 
 
 if __name__ == "__main__":
-    export_phrases(sorted_common_phrases())
+    info = generate_data()
+    export_phrases(sorted_common_phrases(info))
