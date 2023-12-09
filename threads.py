@@ -198,17 +198,23 @@ def export_phrases(phrases):
       Parameters:
       phrases (dict): key is the week, value is a list of common phrases
     """
-    f = open(f'common-phrases.md', "w")
-    f.write(f'# EdForum: Most Common Issues ({TERM})\n')
+    f = open(f"edforum-issues-{TERM.lower()}.md", "w")
+    f.write(f"# EdForum: Most Common Issues ({TERM})\n")
+    f.write("This is done by searching for the most common phrases. <br>The ranking \
+            gives preference to phrases with more words, then to frequency \
+            of occurence. ")
     for week in range(0, MAX_WEEKS):
+        rank = 1
         f.write("<details>")
-        f.write(f'<summary><b>&nbsp; Week {week} </b></summary>')
+        f.write(f"<summary><b>&nbsp; Week {week} </b></summary>\n")
+        f.write("\n| Rank | Occurences | Phrase |\n")
+        f.write("| :-----------: | :-----------: | ----------- |\n")
         for tupl, occurences in phrases[week].items():
-            phrase = ' '.join(tupl)
-            num_spaces = number_of_spaces(occurences)
-            spaces = '&nbsp;' * num_spaces
-
-            f.write(f'({occurences}){spaces}{phrase}<br>')
+            phrase = " ".join(tupl)
+            # num_spaces = number_of_spaces(occurences)
+            # spaces = "&nbsp;" * num_spaces
+            f.write(f"| {rank} | {occurences} | {phrase} |\n")
+            rank += 1
         f.write("</details>")
     f.close()
 
