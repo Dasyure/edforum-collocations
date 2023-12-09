@@ -5,12 +5,18 @@
     -> only the title (recommended)
 
   INSTRUCTIONS:
-    -> Set FILE_NAME for a json file in the same directory
-    -> Set START_DATE to be the first Monday of Week 1 in the form "dd-mm-yyyy"
-    -> Set TERM to the current term
-    -> Set TITLE_ONLY == True/False (recommendation: set to true)
-       -> for title only : MAX_PHRASE_LEN == 5, MIN_REPEAT == 2
-       -> otherwise      : MAX_PHRASE_LEN == 4, MIN_REPEAT == 3
+  Set these values:
+    -> FILE_NAME: a json file in the same directory with EdForum data.
+    -> START_DATE: the first Monday of Week 1 in the form "dd-mm-yyyy".
+    -> TERM: current term.
+    -> MAX_RESULTS_PER_WEEK: however many results you want to see each week.
+    -> SEARCH_TITLE_ONLY: == True/False (recommendation: set to true)
+       -> (True): only searches through the post's titles
+                  Suggested values: MAX_PHRASE_LEN == 5, MIN_REPEAT == 2
+       -> (False): searches through titles and text
+                  Suggested values: MAX_PHRASE_LEN == 4, MIN_REPEAT == 3
+
+  FILE STRUCTURE:
 """
 import json
 import re
@@ -20,23 +26,28 @@ import os
 import pickle
 from datetime import datetime, timedelta
 
-# CHANGE BELOW
+# MUST CHANGE BELOW:
 FILE_NAME = "discussion-threads.json"
 START_DATE = "11-09-2023"
 TERM = "23T3"
-TITLE_ONLY = True
+# OPTIONAL TO CHANGE:
+MAX_RESULTS_PER_WEEK = 50
+SEARCH_TITLE_ONLY = True
 MAX_PHRASE_LEN = 5
 MIN_REPEAT = 2
 # ------------
 WEEK1_DATE = datetime.strptime(START_DATE, '%d-%m-%Y').date()
 DATE_LEN = 10  # str len of "11-09-2023" is 10
-MAX_WEEKS = 14
+MAX_WEEKS = 14 # students usually stop posting by week 12, but just in case...
 IGNORED_WORDS_FILE = "ignored-words"
 
 
 def ignored_words_setup(info):
     """
       Disables ssl checking to download 'stopwords', probably not the safest thing to do
+
+      Parameters:
+      info (dict): holds the list of phrases for each week.
     """
     if not os.path.exists(IGNORED_WORDS_FILE):
         try:
@@ -61,8 +72,8 @@ def get_week(week, date):
       Assumes data is in ascending order.
 
       Parameters:
-      param1 (week): 
-      param2 (date): Description of the second parameter.
+      week (int): current week.
+      date (str): new date, need to find its week.
 
       Returns:
       return_type: Description of the return value.
@@ -80,6 +91,13 @@ def get_week(week, date):
     return None
 
 
+def sort_data(data):
+    """
+      Sorts data in ascending order by date.
+    """
+    data.sort(key=lambda post: datetime.strptime(post["created_at"][:DATE_LEN], '%Y-%m-%d').date())
+
+
 def generate_data():
     """
       Loads the json file and stores the info in a dictionary organised by week.
@@ -87,15 +105,14 @@ def generate_data():
       Returns:
       info (dict): key is the week number, value is a list of strings 
     """
-    info = {}
-    for week in range(0, MAX_WEEKS):
-        info[week] = []
+    info = {week: [] for week in range(0, MAX_WEEKS)}
     week = 0
     data = json.load(open(FILE_NAME))
+    sort_data(data) # needed for get_week to work
     for post in data:
         week = get_week(week, post["created_at"])
         if post["user"]["role"] == "student":
-            if TITLE_ONLY:
+            if SEARCH_TITLE_ONLY:
                 info[week].append(post["title"])
             else:
                 info[week].append(f'{post["title"]} {post["text"]}')
@@ -103,7 +120,7 @@ def generate_data():
     return info
 
 
-def get_common_phrases(texts, ignored_words, maximum_length=MAX_PHRASE_LEN, minimum_repeat=MIN_REPEAT) -> dict:
+def get_common_phrases(texts, ignored_words, maximum_length=MAX_PHRASE_LEN, minimum_repeat=MIN_REPEAT):
     """
       Finds the common phrases given a list of strings, reference:
       -> https://dev.to/mattschwartz/quickly-find-common-phrases-in-a-large-list-of-strings-9in
@@ -178,29 +195,11 @@ def sorted_common_phrases():
     for week in range(0, MAX_WEEKS):
         sorted_phrases[week] = get_common_phrases(info[week], info["ignored_words"])
         sorted_phrases[week] = dict(
-            sorted(sorted_phrases[week].items(), key=lambda item: item[1], reverse=True))
+            sorted(sorted_phrases[week].items(), key=lambda post: post[1], reverse=True))
         sorted_phrases[week] = dict(
-            sorted(sorted_phrases[week].items(), key=lambda l: len(l[0]), reverse=True))
+            sorted(sorted_phrases[week].items(), key=lambda post: len(post[0]), reverse=True))
     return sorted_phrases
 
-# def sorted_common_phrases_overall():
-#     """
-#       Sorts list of common phrases by word length and then frequency. 
-
-#       Returns:
-#       return_type (dict): sorted dictionary of common phrases. 
-#     """
-#     info = generate_data()
-#     ignored_words_setup()
-#     ignored_words = nltk.corpus.stopwords.words('english')
-#     sorted_phrases = {}
-#     for week in range(0, MAX_WEEKS):
-#         sorted_phrases[week] = get_common_phrases(info[week], ignored_words)
-#         sorted_phrases[week] = dict(
-#             sorted(sorted_phrases[week].items(), key=lambda item: item[1], reverse=True))
-#         sorted_phrases[week] = dict(
-#             sorted(sorted_phrases[week].items(), key=lambda l: len(l[0]), reverse=True))
-#     return sorted_phrases
 
 def export_phrases(phrases):
     """
@@ -211,9 +210,9 @@ def export_phrases(phrases):
     """
     f = open(f"edforum-issues-{TERM.lower()}.md", "w")
     f.write(f"# EdForum: Most Common Issues ({TERM})\n")
-    f.write("This is done by searching for the most common phrases each week. <br>The ranking \
-            gives preference to phrases with more words, then to frequency \
-            of occurence. ")
+    f.write("This is done by searching for the most common phrases each week. \
+            <br>The list is sorted by the number of words in a phrase, then by \
+            frequency with which they occur. ")
     for week in range(0, MAX_WEEKS):
         rank = 1
         f.write("<details>")
