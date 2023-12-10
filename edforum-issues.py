@@ -177,6 +177,17 @@ def get_common_phrases(texts, ignored_words, maximum_length=MAX_PHRASE_LEN, mini
 
 
 def sort_one_list(k, phrase_list, sorted_phrases):
+    """
+      Sorts common phrases by word length and then frequency, for each week.
+
+      Parameters:
+      k (int/str): either the number of the week or the word 'overall'
+      phrase_list (list of str): list of string to find common phrases from
+      sorted_phrases (dict): store results into a key of this dict
+
+      Returns:
+      sorted_phrases (dict): sorted dictionary of common phrases.
+    """
     sorted_phrases[k] = get_common_phrases(phrase_list, info["ignored_words"])
     sorted_phrases[k] = dict(
         sorted(sorted_phrases[k].items(), key=lambda post: post[1], reverse=True))
