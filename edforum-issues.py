@@ -37,7 +37,7 @@ MIN_REPEAT = 2  # minimum times a phrase has to occur to be logged
 WEEK1_DATE = datetime.strptime(START_DATE, '%d-%m-%Y').date()
 DATE_LEN = 10  # str len of "11-09-2023" is 10
 MAX_WEEKS = 14  # students usually stop posting by week 12, but just in case...
-IGNORED_WORDS_FILE = "ignored-words"
+IGNORED_WORDS_FILE = "ignored-words" # reduces need to download list of stopwords
 
 
 def ignored_words_setup(info):
