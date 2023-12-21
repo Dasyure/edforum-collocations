@@ -32,6 +32,7 @@ TERM = "23T3"
 MAX_RESULTS_PER_WEEK = 50
 SEARCH_TITLE_ONLY = True
 MAX_PHRASE_LEN = 5
+MIN_PHRASE_LEN = 1
 MIN_REPEAT = 2  # minimum times a phrase has to occur to be logged
 # ------------
 WEEK1_DATE = datetime.strptime(START_DATE, '%d-%m-%Y').date()
@@ -139,13 +140,17 @@ def get_common_phrases(texts, ignored_words, maximum_length=MAX_PHRASE_LEN, mini
         # Remove stopwords and empty strings
         words = [w for w in words if len(w) and w.lower() not in ignored_words]
         length = len(words)
+        print(words)
+        print("######")
         # Look at phrases no longer than maximum_length words long
         size = length if length <= maximum_length else maximum_length
-        while size > 0:
+        while size > 0 and size >= MIN_PHRASE_LEN:
             pos = 0
             # Walk over all sets of words
             while pos + size <= length:
                 phrase = words[pos:pos+size]
+                print(f'size: {size}, pos: {pos}')
+                print(phrase)
                 phrase = tuple(w.lower() for w in phrase)
                 if phrase in phrases:
                     phrases[phrase] += 1
